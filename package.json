@@ -1,0 +1,44 @@
+{
+  "name": "qq-payment-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Payment infrastructure as software: one API to accept payments, run subscriptions and invoices, fight fraud, handle disputes, and pay out sellers.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx watch src/server.ts",
+    "start": "node --enable-source-maps dist/server.js",
+    "migrate": "tsx src/db/migrate.ts",
+    "openapi": "tsx scripts/write-openapi.ts",
+    "cli": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.2.15",
+    "@fastify/swagger": "^9.4.0",
+    "@sinclair/typebox": "^0.34.13",
+    "fastify": "^5.2.0",
+    "pg": "^8.13.1"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "esbuild@0.21.5": true
+  }
+}

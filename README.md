@@ -113,18 +113,103 @@ issues/            Feature specifications, one file per feature, phased
 docs/
   architecture/    System design documents
   research/        Academic papers on payments, ledgers, and distributed systems
-src/               Implementation (not started)
+src/
+  app.ts           Fastify assembly: error mapping, OpenAPI, route registration
+  server.ts        Process entrypoint
+  cli.ts           Merchant onboarding CLI
+  db/              Connection abstraction, migration runner, SQL migrations
+  ledger/          Append-only double-entry ledger and balance replay
+  payments/        Payment intent state machine and orchestration
+  processors/      Processor interface, registry, sandbox implementation
+  auth/            API key issuance, hashing, permissions, tenancy
+  idempotency/     Idempotency key claim and replay store
+  webhooks/        Event persistence, fan-out, signing and retry delivery
+  routes/          v1 HTTP routes and request/response schemas
+scripts/           Repository tooling (OpenAPI generation)
+tests/             Contract, ledger, migration and delivery tests
 ```
 
 ## Current status
 
-Pre-implementation. The specifications in `issues/` are the source of truth
-for what gets built, in what order, and what "done" means. The research
-library in `docs/research/` is the reading list the specs are argued from.
+Phase 1 is implemented and tested: the core payments API, the double-entry
+ledger, merchant auth, idempotency, the sandbox processor, and signed webhook
+delivery. 70 tests cover it, including the invariants that are expensive to
+get wrong — ledger balance, retry safety, and cross-tenant isolation.
 
-Phase 1 is the critical path: the core payments API, the double-entry
-ledger, tokenization, webhooks, and multi-tenant auth. Nothing else can be
-built safely until those land.
+| Area | State |
+| --- | --- |
+| Payments API | Done: intents, confirm, capture, cancel, refunds |
+| Ledger | Done: append-only, balanced by database constraint, replayable balances |
+| Auth | Done: hashed API keys, roles, account scoping |
+| Idempotency | Done: fingerprinting, replay, in-flight waiting |
+| Webhooks | Done: durable events, HMAC signatures, retries, dead letters |
+| Processor | Sandbox only; real rails are a later phase |
+| Subscriptions, invoicing, fraud, disputes, payouts, dashboard | Specified, not built |
+
+The specifications in `issues/` remain the source of truth for what gets built
+next, in what order, and what "done" means.
+
+## Running it locally
+
+Requires Node 22 or newer. Postgres is optional; without `DATABASE_URL` the
+app uses an embedded PGlite database.
+
+```bash
+npm install
+npm run build                 # typecheck and emit dist/
+
+# Create a merchant. Applies migrations and prints the API key once.
+npm run cli -- onboard --name "Acme" --email ops@acme.test --country US
+
+npm start                     # serves on :8080
+```
+
+Or point it at a real database:
+
+```bash
+export DATABASE_URL=postgres://user:pass@localhost:5432/qqpg
+npm run migrate               # explicit, before serving
+npm start
+```
+
+`MIGRATE_ON_BOOT=true` migrates during startup. Leave it off in production:
+several replicas racing to alter the same table is how an outage starts.
+
+### Charge a test card
+
+Create a customer, attach a card, then create and confirm an intent. Every
+mutation needs an `Idempotency-Key` header.
+
+```bash
+KEY=sk_test_...   # from the onboard output
+
+curl -X POST localhost:8080/v1/customers \
+  -H "authorization: Bearer $KEY" -H 'idempotency-key: cust-0001' \
+  -H 'content-type: application/json' \
+  -d '{"email":"buyer@example.test"}'
+```
+
+Sandbox cards are chosen by their last four digits, so behaviour is
+reproducible without a network call:
+
+| Card | Outcome |
+| --- | --- |
+| `4242 4242 4242 4242` | Approves |
+| `4000 0000 0000 0002` | Declines |
+| `4000 0000 0000 9995` | Requires 3DS authentication |
+| `4000 0000 0000 0119` | Declines, insufficient funds |
+| `4000 0000 0000 0069` | Processor error, intent left ambiguous |
+
+### Tests and the API spec
+
+```bash
+npm test                      # 70 tests
+npm run openapi               # regenerate openapi.json from the running app
+```
+
+`openapi.json` is generated from the same TypeBox schemas that validate
+requests, so the published spec cannot drift from behaviour. A test asserts
+that, and that every mutating route still requires an idempotency key.
 
 ## Research library
 
@@ -142,12 +227,13 @@ code and the contract disagree, one of them is a bug.
 
 1. Pick an issue from [`issues/`](issues/README.md) and comment on it.
 2. Open a branch, make the change, include tests.
-3. Contract tests and the ledger balance invariant run on every commit.
-   A failing invariant blocks the merge.
+3. Run `npm test`. Contract tests and the ledger balance invariant run on
+   every commit, and a failing invariant blocks the merge.
 
 Disagreement with a spec is welcome and expected. Comment on the file with
 what you think is wrong, and update the acceptance criteria as part of the
-PR.
+PR. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the conventions the tests
+assume.
 
 ## License
 

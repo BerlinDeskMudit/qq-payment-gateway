@@ -1,0 +1,21 @@
+# Build context should carry source, not build output. Copying node_modules in
+# would bust the layer cache on every host and can pull in native binaries built
+# for a different platform.
+node_modules
+dist
+.git
+.github
+docs
+issues
+
+# Local and editor noise
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+coverage
+.pglite

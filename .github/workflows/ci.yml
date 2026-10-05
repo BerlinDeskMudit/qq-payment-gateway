@@ -1,0 +1,84 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs. Waiting for a stale commit's result wastes the same
+# CI minutes that a slow suite already spends.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: OpenAPI is current
+        run: |
+          npm run openapi
+          if ! git diff --quiet -- openapi.json; then
+            echo "::error::openapi.json is stale. Run 'npm run openapi' and commit the result."
+            git diff --stat -- openapi.json
+            exit 1
+          fi
+
+  postgres:
+    # The suite runs against PGlite, which is a WASM build of Postgres and
+    # behaves almost identically. It does not have replication, real
+    # concurrency, or `pg` as a driver, so this job runs the migration and
+    # ledger suites against a real server to catch the difference.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: qqpg_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/qqpg_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Migrations apply against real Postgres
+        run: npm run migrate
+
+      - name: Ledger and migration suites against real Postgres
+        run: npx vitest run tests/ledger tests/db --reporter=verbose
