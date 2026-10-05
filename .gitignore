@@ -1,0 +1,50 @@
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Rust
+target/
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Test and coverage artifacts
+coverage/
+.nyc_output/
+junit.xml
+
+# Local data and sandbox artifacts
+tmp/
+sandbox/
+*.sqlite
+*.sqlite3
+
+# Never commit real ledger dumps or exported merchant data
+exports/
+*.csv
+!docs/**/*.csv
+
+# Logs
+*.log
