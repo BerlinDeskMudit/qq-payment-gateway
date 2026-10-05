@@ -37,8 +37,8 @@ of merchants, so silent failure is not acceptable.
 
 ### Developer experience
 
-- `stripe`-shaped CLI command to replay and inspect: list recent deliveries
-  per endpoint, view request/response pairs, re-send.
+- CLI command to replay and inspect: list recent deliveries per endpoint,
+  view request/response pairs, re-send.
 - Local listener with signature verification and a real-time UI.
 - Typed event payloads generated from the same OpenAPI source.
 

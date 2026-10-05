@@ -16,8 +16,9 @@ goal is for our servers to hold only an opaque token.
   service. Raw PAN never transits or rests on our infrastructure.
 - Store only: `tok_...` handle, last 4, brand, expiry, and a
   processor-issued network token where the region supports it.
-- Stripe-style `src_` / `tok_` distinction abstracted behind one internal
-  `PaymentMethod` type so merchants do not care which they were given.
+- The distinction between a raw card payload and an already-tokenized one
+  is abstracted behind a single internal `PaymentMethod` type, so callers
+  do not care which they were handed.
 
 ### Lifecycle
 
