@@ -4,6 +4,7 @@ import type { Db } from './db/index.js';
 import type { ProcessorRegistry } from './processors/index.js';
 import { ApiError } from './lib/errors.js';
 import { registerRoutes } from './routes/v1.js';
+import { registerCheckoutRoutes } from './routes/checkout.js';
 
 export type AppDeps = {
   db: Db;
@@ -118,6 +119,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   );
 
   await registerRoutes(app, deps);
+  // Checkout is separate from the merchant routes: half of it is a public
+  // browser surface that must stay out of the published spec.
+  await registerCheckoutRoutes(app, deps);
 
   await app.ready();
   return app;

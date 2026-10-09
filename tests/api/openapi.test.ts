@@ -80,6 +80,8 @@ describe('OpenAPI document', () => {
       '/v1/balance',
       '/v1/webhook_endpoints',
       '/v1/webhook_deliveries',
+      '/v1/checkout/sessions',
+      '/v1/checkout/sessions/{id}',
     ]) {
       expect(published).toContain(expected);
     }
@@ -94,6 +96,7 @@ describe('OpenAPI document', () => {
     // Pinned so a newly added mutation shows up here and has to be justified.
     expect(mutating).toEqual([
       'POST /v1/charges/{id}/refunds',
+      'POST /v1/checkout/sessions',
       'POST /v1/customers',
       'POST /v1/payment_intents',
       'POST /v1/payment_intents/{id}/cancel',

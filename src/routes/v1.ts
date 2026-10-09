@@ -40,7 +40,7 @@ type IdempotentRequest<Req extends RouteGenericInterface> = FastifyRequest<Req> 
  * should be able to retry the same key and get a real new attempt; replaying
  * the stored failure forever would make the key unusable.
  */
-function withIdempotency<Req extends RouteGenericInterface>(
+export function withIdempotency<Req extends RouteGenericInterface>(
   deps: AppDeps,
   handler: (req: IdempotentRequest<Req>) => Promise<{ status: number; body: unknown }>,
 ) {
@@ -67,11 +67,11 @@ function withIdempotency<Req extends RouteGenericInterface>(
 }
 
 /** The auth header is the credential; this documents the secret's format. */
-const AuthHeader = Type.Object({ authorization: Type.String({ pattern: '^Bearer .+$' }) });
+export const AuthHeader = Type.Object({ authorization: Type.String({ pattern: '^Bearer .+$' }) });
 
 /** Mutations require an idempotency key. Enforced in the header schema, not
  * only in the handler, so the requirement shows up in the published spec. */
-const IdempotencyKeyHeader = Type.Object({
+export const IdempotencyKeyHeader = Type.Object({
   'idempotency-key': Type.String({ minLength: 8, maxLength: 255 }),
 });
 
@@ -81,7 +81,7 @@ const IdempotencyKeyHeader = Type.Object({
  * listed here, because they are the diagnostics an integrator needs to fix
  * their integration: which object, which state, which remaining amount.
  */
-const ErrorSchema = Type.Object({
+export const ErrorSchema = Type.Object({
   error: Type.Object({
     type: Type.String(),
     code: Type.String(),
@@ -342,7 +342,7 @@ export async function registerRoutes(app: FastifyInstance, deps: AppDeps): Promi
       const principal = await authenticate(db, req.headers.authorization);
       assertPermission(principal, 'payment_intents:write');
       const { intent, charge } = await payments.confirmPaymentIntent({
-        db, principal, intentId: req.params.id, registry, idempotencyKey: req.idempotencyKey,
+        db, accountId: principal.accountId, intentId: req.params.id, registry, idempotencyKey: req.idempotencyKey,
       });
       return { status: 200 as const, body: charge ? { ...presentIntent(intent), latest_charge: presentCharge(charge) } : presentIntent(intent) };
     }),
@@ -364,7 +364,7 @@ export async function registerRoutes(app: FastifyInstance, deps: AppDeps): Promi
       assertPermission(principal, 'payment_intents:write');
       const body = (req.body ?? {}) as Static<typeof CaptureBody>;
       const { intent, charge } = await payments.capturePaymentIntent({
-        db, principal, intentId: req.params.id, registry,
+        db, accountId: principal.accountId, intentId: req.params.id, registry,
         idempotencyKey: req.idempotencyKey, amount: body.amount_to_capture,
       });
       return { status: 200 as const, body: { ...presentIntent(intent), latest_charge: presentCharge(charge) } };
@@ -385,7 +385,7 @@ export async function registerRoutes(app: FastifyInstance, deps: AppDeps): Promi
       const principal = await authenticate(db, req.headers.authorization);
       assertPermission(principal, 'payment_intents:write');
       const intent = await payments.cancelPaymentIntent({
-        db, principal, intentId: req.params.id, registry, idempotencyKey: req.idempotencyKey,
+        db, accountId: principal.accountId, intentId: req.params.id, registry, idempotencyKey: req.idempotencyKey,
       });
       return { status: 200 as const, body: presentIntent(intent) };
     }),

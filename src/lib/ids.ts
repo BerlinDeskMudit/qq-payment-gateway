@@ -8,7 +8,8 @@ import { invalidRequest } from './errors.js';
  */
 const PREFIXES = [
   'acct', 'cus', 'pm', 'pi', 'pat', 'ch', 're', 'evt', 'we', 'whd',
-  'le', 'la', 'key', 'req', 'pi_secret', 'sk_live', 'sk_test',
+  'le', 'la', 'key', 'req', 'pi_secret', 'sk_live', 'sk_test', 'cs',
+  'rs', 'rr', 'rj', 'rb', 'rv',
 ] as const;
 
 export type IdPrefix = (typeof PREFIXES)[number];

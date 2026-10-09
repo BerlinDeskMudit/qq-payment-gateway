@@ -559,6 +559,754 @@
         }
       }
     },
+    "/v1/checkout/sessions": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "success_url"
+                ],
+                "properties": {
+                  "line_items": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "name",
+                        "quantity",
+                        "unit_amount"
+                      ],
+                      "properties": {
+                        "name": {
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "minimum": 1,
+                          "maximum": 1000,
+                          "type": "integer"
+                        },
+                        "unit_amount": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "description": {
+                          "maxLength": 500,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "payment_intent": {
+                    "type": "string"
+                  },
+                  "currency": {
+                    "minLength": 3,
+                    "maxLength": 3,
+                    "type": "string"
+                  },
+                  "customer": {
+                    "type": "string"
+                  },
+                  "success_url": {
+                    "maxLength": 2048,
+                    "type": "string"
+                  },
+                  "cancel_url": {
+                    "maxLength": 2048,
+                    "type": "string"
+                  },
+                  "expires_in": {
+                    "minimum": 300,
+                    "maximum": 86400,
+                    "type": "integer"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^Bearer .+$",
+              "type": "string"
+            },
+            "in": "header",
+            "name": "authorization",
+            "required": true
+          },
+          {
+            "schema": {
+              "minLength": 8,
+              "maxLength": 255,
+              "type": "string"
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "object",
+                    "url",
+                    "status",
+                    "amount",
+                    "currency",
+                    "line_items",
+                    "payment_intent",
+                    "client_secret",
+                    "success_url",
+                    "cancel_url",
+                    "expires_at",
+                    "metadata",
+                    "created"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "object": {
+                      "type": "string",
+                      "enum": [
+                        "checkout_session"
+                      ]
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "line_items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "name",
+                          "quantity",
+                          "unit_amount"
+                        ],
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "integer"
+                          },
+                          "unit_amount": {
+                            "type": "integer"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "payment_intent": {
+                      "type": "string"
+                    },
+                    "client_secret": {
+                      "type": "string"
+                    },
+                    "success_url": {
+                      "type": "string"
+                    },
+                    "cancel_url": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "expires_at": {
+                      "type": "string"
+                    },
+                    "metadata": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "created": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "type",
+                        "code",
+                        "message",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "decline_code": {
+                          "type": "string"
+                        },
+                        "charge": {
+                          "type": "string"
+                        },
+                        "payment_intent": {
+                          "type": "string"
+                        },
+                        "current_status": {
+                          "type": "string"
+                        },
+                        "minimum_amount": {
+                          "type": "integer"
+                        },
+                        "remaining_amount": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "retry_after": {
+                          "type": "integer"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "docs_url": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "type",
+                        "code",
+                        "message",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "decline_code": {
+                          "type": "string"
+                        },
+                        "charge": {
+                          "type": "string"
+                        },
+                        "payment_intent": {
+                          "type": "string"
+                        },
+                        "current_status": {
+                          "type": "string"
+                        },
+                        "minimum_amount": {
+                          "type": "integer"
+                        },
+                        "remaining_amount": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "retry_after": {
+                          "type": "integer"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "docs_url": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "type",
+                        "code",
+                        "message",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "decline_code": {
+                          "type": "string"
+                        },
+                        "charge": {
+                          "type": "string"
+                        },
+                        "payment_intent": {
+                          "type": "string"
+                        },
+                        "current_status": {
+                          "type": "string"
+                        },
+                        "minimum_amount": {
+                          "type": "integer"
+                        },
+                        "remaining_amount": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "retry_after": {
+                          "type": "integer"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "docs_url": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "type",
+                        "code",
+                        "message",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "decline_code": {
+                          "type": "string"
+                        },
+                        "charge": {
+                          "type": "string"
+                        },
+                        "payment_intent": {
+                          "type": "string"
+                        },
+                        "current_status": {
+                          "type": "string"
+                        },
+                        "minimum_amount": {
+                          "type": "integer"
+                        },
+                        "remaining_amount": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "retry_after": {
+                          "type": "integer"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "docs_url": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/checkout/sessions/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "object",
+                    "url",
+                    "status",
+                    "amount",
+                    "currency",
+                    "line_items",
+                    "payment_intent",
+                    "client_secret",
+                    "success_url",
+                    "cancel_url",
+                    "expires_at",
+                    "metadata",
+                    "created"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "object": {
+                      "type": "string",
+                      "enum": [
+                        "checkout_session"
+                      ]
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "line_items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "name",
+                          "quantity",
+                          "unit_amount"
+                        ],
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "integer"
+                          },
+                          "unit_amount": {
+                            "type": "integer"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "payment_intent": {
+                      "type": "string"
+                    },
+                    "client_secret": {
+                      "type": "string"
+                    },
+                    "success_url": {
+                      "type": "string"
+                    },
+                    "cancel_url": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "expires_at": {
+                      "type": "string"
+                    },
+                    "metadata": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "created": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "type",
+                        "code",
+                        "message",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "decline_code": {
+                          "type": "string"
+                        },
+                        "charge": {
+                          "type": "string"
+                        },
+                        "payment_intent": {
+                          "type": "string"
+                        },
+                        "current_status": {
+                          "type": "string"
+                        },
+                        "minimum_amount": {
+                          "type": "integer"
+                        },
+                        "remaining_amount": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "retry_after": {
+                          "type": "integer"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "docs_url": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "type",
+                        "code",
+                        "message",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "decline_code": {
+                          "type": "string"
+                        },
+                        "charge": {
+                          "type": "string"
+                        },
+                        "payment_intent": {
+                          "type": "string"
+                        },
+                        "current_status": {
+                          "type": "string"
+                        },
+                        "minimum_amount": {
+                          "type": "integer"
+                        },
+                        "remaining_amount": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "retry_after": {
+                          "type": "integer"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "docs_url": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/customers": {
       "post": {
         "requestBody": {

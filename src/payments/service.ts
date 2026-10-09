@@ -209,11 +209,23 @@ async function loadPaymentMethodToken(db: Db, intent: PaymentIntentRow): Promise
 
 export type ConfirmOptions = {
   db: Db;
-  principal: Principal;
+  /**
+   * The account the intent belongs to. Deliberately an account id rather
+   * than an API-key principal: the only thing these functions use it for is
+   * scoping their reads, and the hosted Checkout flow reaches them with a
+   * session, not a key.
+   */
+  accountId: string;
   intentId: string;
   registry: { pickDefault(): Processor; get(name: ProcessorName): Processor };
   /** Distinguishes attempts; also the provider idempotency key. */
   idempotencyKey: string;
+  /**
+   * Outcome of an issuer challenge the cardholder has already answered.
+   * See `Processor.authorize`: only a flow that actually rendered the
+   * challenge may set this.
+   */
+  challengeResult?: 'passed';
 };
 
 /**
@@ -225,12 +237,12 @@ export type ConfirmOptions = {
  * during an incident.
  */
 export async function confirmPaymentIntent(opts: ConfirmOptions): Promise<{ intent: PaymentIntentRow; charge?: ChargeRow }> {
-  const { db, principal, intentId, registry, idempotencyKey } = opts;
+  const { db, accountId, intentId, registry, idempotencyKey, challengeResult } = opts;
 
   // Phase 1: reserve inside our own ledger and claim the attempt. Committed
   // separately from the network call on purpose.
   const reservation = await db.transaction(async (tx) => {
-    const intent = await loadIntent(tx, intentId, principal.accountId);
+    const intent = await loadIntent(tx, intentId, accountId);
     if (intent.status === 'requires_payment_method') {
       throw invalidStateTransition(intent.status, 'confirm', intent.id);
     }
@@ -288,6 +300,7 @@ export async function confirmPaymentIntent(opts: ConfirmOptions): Promise<{ inte
     processorToken: token,
     amount,
     currency: intent.currency,
+    ...(challengeResult ? { challengeResult } : {}),
   });
 
   // Phase 3: post the outcome.
@@ -299,7 +312,7 @@ export async function confirmPaymentIntent(opts: ConfirmOptions): Promise<{ inte
   let deferredError: ApiError | null = null;
 
   const outcome = await db.transaction(async (tx): Promise<{ intent: PaymentIntentRow; charge?: ChargeRow } | null> => {
-    const current = await loadIntent(tx, intent.id, principal.accountId);
+    const current = await loadIntent(tx, intent.id, accountId);
 
     if (result.outcome === 'declined') {
       await tx.query(
@@ -413,8 +426,8 @@ export async function confirmPaymentIntent(opts: ConfirmOptions): Promise<{ inte
 export async function capturePaymentIntent(
   opts: ConfirmOptions & { amount?: number },
 ): Promise<{ intent: PaymentIntentRow; charge: ChargeRow }> {
-  const { db, principal, intentId, registry, amount: requested } = opts;
-  const intent = await loadIntent(db, intentId, principal.accountId);
+  const { db, accountId, intentId, registry, amount: requested } = opts;
+  const intent = await loadIntent(db, intentId, accountId);
   if (intent.status !== 'requires_capture' || intent.capture_method !== 'manual') {
     throw invalidStateTransition(intent.status, 'capture', intent.id);
   }
@@ -448,7 +461,7 @@ export async function capturePaymentIntent(
   }
 
   return db.transaction(async (tx) => {
-    const current = await loadIntent(tx, intentId, principal.accountId);
+    const current = await loadIntent(tx, intentId, accountId);
     if (current.status !== 'requires_capture') {
       throw invalidStateTransition(current.status, 'capture', current.id);
     }
@@ -474,9 +487,9 @@ export async function capturePaymentIntent(
     );
     const updated = rows[0]!;
 
-    await emitEvents(tx, principal.accountId, [{ type: 'charge.succeeded', object: updatedChargeRows[0]! }]);
+    await emitEvents(tx, accountId, [{ type: 'charge.succeeded', object: updatedChargeRows[0]! }]);
     if (done) {
-      await emitEvents(tx, principal.accountId, [{ type: 'payment_intent.succeeded', object: updated }]);
+      await emitEvents(tx, accountId, [{ type: 'payment_intent.succeeded', object: updated }]);
     }
     return { intent: updated, charge: updatedChargeRows[0]! };
   });
@@ -494,9 +507,9 @@ async function firstProcessorFor(db: Db, intentId: string): Promise<ProcessorNam
 }
 
 export async function cancelPaymentIntent(opts: ConfirmOptions): Promise<PaymentIntentRow> {
-  const { db, principal, intentId } = opts;
+  const { db, accountId, intentId } = opts;
   return db.transaction(async (tx) => {
-    const intent = await loadIntent(tx, intentId, principal.accountId);
+    const intent = await loadIntent(tx, intentId, accountId);
     if (intent.status === 'canceled') return intent;
     await assertTransition(intent, 'canceled', 'cancel');
 
@@ -526,7 +539,7 @@ export async function cancelPaymentIntent(opts: ConfirmOptions): Promise<Payment
       [intentId],
     );
     const canceled = rows[0]!;
-    await emitEvents(tx, principal.accountId, [{ type: 'payment_intent.canceled', object: canceled }]);
+    await emitEvents(tx, accountId, [{ type: 'payment_intent.canceled', object: canceled }]);
     return canceled;
   });
 }
@@ -602,6 +615,44 @@ async function releaseHold(
 
 export async function retrievePaymentIntent(db: Db, accountId: string, intentId: string): Promise<PaymentIntentRow> {
   return loadIntent(db, intentId, accountId);
+}
+
+/**
+ * Attach the method the customer just chose, at confirmation time.
+ *
+ * Checkout collects payment details after the intent exists, so this is the
+ * only place an intent learns its payment method besides creation. It is
+ * refused on an intent that is already awaiting a challenge or a capture:
+ * swapping the method there would silently drop the state the cardholder or
+ * the merchant is waiting on.
+ */
+export async function attachPaymentMethod(
+  db: Db,
+  input: { accountId: string; intentId: string; paymentMethodId: string },
+): Promise<PaymentIntentRow> {
+  return db.transaction(async (tx) => {
+    const intent = await loadIntent(tx, input.intentId, input.accountId);
+    if (intent.status !== 'requires_payment_method' && intent.status !== 'requires_confirmation') {
+      throw invalidStateTransition(intent.status, 'attach a payment method to', intent.id);
+    }
+
+    // Cross-account method: the FK would accept another merchant's id, so the
+    // tenancy check is here rather than in the constraint.
+    const { rowCount } = await tx.query(
+      `SELECT 1 FROM payment_methods WHERE id = $1 AND account_id = $2`,
+      [input.paymentMethodId, input.accountId],
+    );
+    if (!rowCount) throw crossAccount('payment_method');
+
+    const { rows } = await tx.query<PaymentIntentRow>(
+      `UPDATE payment_intents
+          SET payment_method_id = $1, status = 'requires_confirmation', updated_at = now()
+        WHERE id = $2 AND account_id = $3
+        RETURNING *`,
+      [input.paymentMethodId, input.intentId, input.accountId],
+    );
+    return rows[0]!;
+  });
 }
 
 export async function listCharges(

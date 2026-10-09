@@ -39,6 +39,14 @@ export interface Processor {
     amount: number;
     currency: string;
     networkReference?: string;
+    /**
+     * The outcome of an issuer challenge the cardholder has already been
+     * shown. Set by a flow that performed the challenge (hosted Checkout
+     * renders it inline); production adapters must take it from the
+     * processor's own challenge response, never from anything the client
+     * submitted, because accepting it from the browser is a 3DS bypass.
+     */
+    challengeResult?: 'passed';
   }): Promise<AuthorizationResult>;
   capture(input: {
     idempotencyKey: string;
@@ -100,6 +108,7 @@ export class SandboxProcessor implements Processor {
     amount: number;
     currency: string;
     networkReference?: string;
+    challengeResult?: 'passed';
   }): Promise<AuthorizationResult> {
     // Provider-side idempotency: reauthorizing the same key returns the
     // original result rather than creating a second authorization.
@@ -114,11 +123,17 @@ export class SandboxProcessor implements Processor {
         result = { outcome: 'approved', networkReference: `auth_${input.idempotencyKey.slice(-12)}` };
         break;
       case 'three_ds':
-        result = {
-          outcome: 'requires_action',
-          redirectUrl: `https://sandbox.3ds.example/challenge/${input.idempotencyKey.slice(-8)}`,
-          networkReference: `auth_${input.idempotencyKey.slice(-12)}`,
-        };
+        // A 3DS card challenges on the first authorization and approves once
+        // the challenge has been answered, which is what an issuer does. The
+        // challenge itself is rendered by the hosted page; the answer comes
+        // back through that flow, not from re-submitting the card.
+        result = input.challengeResult === 'passed'
+          ? { outcome: 'approved', networkReference: `auth_${input.idempotencyKey.slice(-12)}` }
+          : {
+              outcome: 'requires_action',
+              redirectUrl: `https://sandbox.3ds.example/challenge/${input.idempotencyKey.slice(-8)}`,
+              networkReference: `auth_${input.idempotencyKey.slice(-12)}`,
+            };
         break;
       case 'insufficient':
         result = {

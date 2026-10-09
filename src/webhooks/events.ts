@@ -24,7 +24,11 @@ export type EventType =
   | 'charge.refunded'
   | 'refund.created'
   | 'refund.succeeded'
-  | 'refund.failed';
+  | 'refund.failed'
+  | 'checkout_session.created'
+  | 'checkout_session.completed'
+  | 'risk.review.opened'
+  | 'risk.source.auto_blocked';
 
 export type EventInput = { type: EventType; object: unknown };
 

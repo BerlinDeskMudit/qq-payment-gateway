@@ -42,13 +42,16 @@ const ROLE_PERMISSIONS: Record<Role, string[]> = {
     'charges:write', 'charges:read', 'customers:write', 'customers:read',
     'payment_intents:write', 'payment_intents:read', 'events:read',
     'webhooks:write', 'webhooks:read', 'balances:read',
+    'checkout:write', 'checkout:read',
+    'risk:write', 'risk:read',
   ],
   finance: [
     'charges:read', 'customers:read', 'payment_intents:read',
     'balances:read', 'refunds:write', 'refunds:read', 'payouts:write', 'payouts:read',
+    'checkout:read',
   ],
-  support: ['charges:read', 'customers:read', 'payment_intents:read', 'events:read', 'webhooks:read'],
-  viewer: ['charges:read', 'payment_intents:read', 'customers:read', 'balances:read'],
+  support: ['charges:read', 'customers:read', 'payment_intents:read', 'events:read', 'webhooks:read', 'checkout:read', 'risk:read'],
+  viewer: ['charges:read', 'payment_intents:read', 'customers:read', 'balances:read', 'checkout:read', 'risk:read'],
 };
 
 export function permissionsForRole(role: Role): string[] {
